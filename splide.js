@@ -1,21 +1,18 @@
 /**
- * Patterns Dev – Scroll-Triggered Animated Counter
+ * Patterns Dev – Splide Slider
  * Requires Splide V4.1.3 + and Splide-extension-auto-scroll V0.4.2
  * 
  * HTML elements must include data-pd-* attributes to control behavior.
  */
 
-Webflow ||= [];
-Webflow.push(function () {
-  console.log("[Webflow Splide] from Pablo Gubelin successfully initialized 🚀");
-
-  const allSplides = document.querySelectorAll("[data-pd-slider]");
+  document.addEventListener("DOMContentLoaded", function () {
+  const allSplides = document.querySelectorAll("[wb-element='splide']");
 
   allSplides.forEach((splide, i) => {
-    const sliderName = splide.getAttribute('id') || `PD Slider #${i + 1}`;
+    const sliderName = splide.getAttribute('id') || `Slider #${i + 1}`;
 
     const getBool = (attr) => {
-      const val = splide.dataset[`pd${attr}`]?.toLowerCase();
+      const val = splide.dataset[attr]?.toLowerCase();
       if (val !== "true" && val !== "false" && val !== undefined) {
         console.warn(`[${sliderName}] Valor inválido en '${attr}': "${val}", usando false.`);
       }
@@ -23,10 +20,10 @@ Webflow.push(function () {
     };
 
     const getNum = (attr, fallback) => {
-      const val = parseFloat(splide.dataset[`pd${attr}`]);
+      const val = parseFloat(splide.dataset[attr]);
       if (isNaN(val)) {
-        if (splide.dataset[`pd${attr}`] !== undefined) {
-          console.warn(`[${sliderName}] Número inválido en '${attr}': "${splide.dataset[`pd${attr}`]}", usando ${fallback}.`);
+        if (splide.dataset[attr] !== undefined) {
+          console.warn(`[${sliderName}] Número inválido en '${attr}': "${splide.dataset[attr]}", usando ${fallback}.`);
         }
         return fallback;
       }
@@ -34,9 +31,9 @@ Webflow.push(function () {
     };
 
     const getStr = (attr, fallback) => {
-      const val = splide.dataset[`pd${attr}`]?.trim();
+      const val = splide.dataset[attr]?.trim();
       if (!val) {
-        if (splide.dataset[`pd${attr}`] !== undefined) {
+        if (splide.dataset[attr] !== undefined) {
           console.warn(`[${sliderName}] String vacío o inválido en '${attr}', usando "${fallback}".`);
         }
         return fallback;
@@ -47,7 +44,7 @@ Webflow.push(function () {
     const getBreakpoints = () => {
       const breakpoints = {};
       for (const attr of splide.attributes) {
-        const match = attr.name.match(/^data-pd-breakpoint-(\d+)$/);
+        const match = attr.name.match(/^data-breakpoint-(\d+)$/);
         if (match) {
           const px = parseInt(match[1], 10);
           const perPageVal = parseFloat(attr.value);
@@ -62,8 +59,8 @@ Webflow.push(function () {
     };
 
     const type = getStr("type", "slide");
-    const perPage = getNum("perpage", 1);
-    const perMove = getNum("permove", perPage);
+    const perPage = getNum("perPage", 1);
+    const perMove = getNum("perMove", perPage);
     const gap = getStr("gap", "1rem");
     const arrows = getBool("arrows");
     const pagination = getBool("pagination");
@@ -73,11 +70,11 @@ Webflow.push(function () {
     const easing = getStr("easing", null);
     const rewind = getBool("rewind");
     const useAutoscroll = getBool("autoscroll");
-    const autoscrollSpeed = getNum("autoscrollspeed", 1);
-    const pauseOnHover = getBool("pauseonhover");
-    const trackOverflow = getStr("trackoverflow", null);
+    const autoscrollSpeed = getNum("autoscrollSpeed", 1);
+    const pauseOnHover = getBool("pauseOnHover");
+    const trackOverflow = getStr("trackOverflow", null);
     const useProgress = getBool("progress");
-    const progressMode = getStr("progressmode", "autoplay");
+    const progressMode = getStr("progressMode", "autoplay");
 
     const options = {
       type,
@@ -113,8 +110,10 @@ Webflow.push(function () {
     try {
       const instance = new Splide(splide, options);
 
+      // Barra de progreso
       if (useProgress) {
         const bar = splide.querySelector(".splide__progress-bar");
+
         if (!bar) {
           console.warn(`[${sliderName}] .splide__progress-bar no encontrada. Se omitirá progreso.`);
         } else {
