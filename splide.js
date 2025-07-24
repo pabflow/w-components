@@ -9,21 +9,57 @@ Webflow ||= [];
 Webflow.push(function () {
   console.log("[Webflow Splide] from Pablo Gubelin successfully initialized 🚀");
 
-  const sliders = document.querySelectorAll("[data-pd-slider]");
+  const allSplides = document.querySelectorAll("[data-pd-slider]");
 
-  if (!sliders.length) return;
+  allSplides.forEach((splide, i) => {
+    const sliderName = splide.getAttribute('id') || `PD Slider #${i + 1}`;
 
-  sliders.forEach((sliderEl) => {
-    const getAttr = (name) => sliderEl.getAttribute(`data-pd-${name}`);
-    const getNum = (name, fallback = null) => {
-      const val = getAttr(name);
-      return val !== null ? parseFloat(val) : fallback;
+    const getBool = (attr) => {
+      const val = splide.dataset[`pd${attr}`]?.toLowerCase();
+      if (val !== "true" && val !== "false" && val !== undefined) {
+        console.warn(`[${sliderName}] Valor inválido en '${attr}': "${val}", usando false.`);
+      }
+      return val === "true";
     };
-    const getStr = (name, fallback = null) => {
-      const val = getAttr(name);
-      return val !== null ? val : fallback;
+
+    const getNum = (attr, fallback) => {
+      const val = parseFloat(splide.dataset[`pd${attr}`]);
+      if (isNaN(val)) {
+        if (splide.dataset[`pd${attr}`] !== undefined) {
+          console.warn(`[${sliderName}] Número inválido en '${attr}': "${splide.dataset[`pd${attr}`]}", usando ${fallback}.`);
+        }
+        return fallback;
+      }
+      return val;
     };
-    const getBool = (name) => getAttr(name) !== null;
+
+    const getStr = (attr, fallback) => {
+      const val = splide.dataset[`pd${attr}`]?.trim();
+      if (!val) {
+        if (splide.dataset[`pd${attr}`] !== undefined) {
+          console.warn(`[${sliderName}] String vacío o inválido en '${attr}', usando "${fallback}".`);
+        }
+        return fallback;
+      }
+      return val;
+    };
+
+    const getBreakpoints = () => {
+      const breakpoints = {};
+      for (const attr of splide.attributes) {
+        const match = attr.name.match(/^data-pd-breakpoint-(\d+)$/);
+        if (match) {
+          const px = parseInt(match[1], 10);
+          const perPageVal = parseFloat(attr.value);
+          if (!isNaN(px) && !isNaN(perPageVal)) {
+            breakpoints[px] = { perPage: perPageVal };
+          } else {
+            console.warn(`[${sliderName}] Breakpoint ${match[1]} tiene valor inválido: "${attr.value}"`);
+          }
+        }
+      }
+      return breakpoints;
+    };
 
     const type = getStr("type", "slide");
     const perPage = getNum("perpage", 1);
@@ -43,7 +79,7 @@ Webflow.push(function () {
     const useProgress = getBool("progress");
     const progressMode = getStr("progressmode", "autoplay");
 
-    const splide = new Splide(sliderEl, {
+    const options = {
       type,
       perPage,
       perMove,
@@ -51,47 +87,63 @@ Webflow.push(function () {
       arrows,
       pagination,
       autoplay,
-      interval,
-      focus,
-      easing,
       rewind,
-      pauseOnHover,
-      classes: {
-        arrows: 'splide__arrows',
-        arrow: 'splide__arrow',
-        prev: 'splide__arrow--prev',
-        next: 'splide__arrow--next',
-      },
-    });
+      interval,
+      breakpoints: getBreakpoints(),
+    };
+
+    if (focus) options.focus = focus;
+    if (easing) options.easing = easing;
 
     if (useAutoscroll) {
-      splide.mount(window.splide.Extensions.AutoScroll);
-      splide.options = {
-        ...splide.options,
-        autoScroll: {
-          speed: autoscrollSpeed,
-          pauseOnHover,
-        },
+      options.autoScroll = {
+        speed: autoscrollSpeed,
+        pauseOnHover: pauseOnHover,
+        pauseOnFocus: false,
       };
-    } else {
-      splide.mount();
     }
 
-    // Optional progress bar
-    if (useProgress) {
-      const bar = sliderEl.querySelector("[data-pd-progress]");
-      if (bar) {
-        splide.on("move", (newIndex) => {
-          const totalSlides = splide.Components.Controller.edge + 1;
-          const percent = (newIndex / (totalSlides - 1)) * 100;
-          bar.style.width = `${percent}%`;
-        });
+    if (trackOverflow) {
+      const track = splide.querySelector(".splide__track");
+      if (track) {
+        track.style.overflow = trackOverflow;
       }
     }
-  });
 
-  /** --------------------------------
-   * ✅ Debug / Test Logs
-   * -------------------------------- */
-  console.log("[Webflow Splide] All sliders successfully initialized ✅");
+    try {
+      const instance = new Splide(splide, options);
+
+      if (useProgress) {
+        const bar = splide.querySelector(".splide__progress-bar");
+        if (!bar) {
+          console.warn(`[${sliderName}] .splide__progress-bar no encontrada. Se omitirá progreso.`);
+        } else {
+          if (progressMode === "autoplay") {
+            instance.on("autoplay:playing", (rate) => {
+              bar.style.width = `${rate * 100}%`;
+            });
+          } else {
+            const updateProgress = () => {
+              const end = instance.Components.Controller.getEnd() + 1;
+              const rate = Math.min((instance.index + 1) / end, 1);
+              bar.style.width = `${rate * 100}%`;
+            };
+            instance.on("mounted move", updateProgress);
+            updateProgress();
+          }
+        }
+      }
+
+      instance.mount(useAutoscroll ? window.splide.Extensions : undefined);
+    } catch (err) {
+      console.error(`[${sliderName}] Error al montar el slider:`, err);
+      splide.classList.add("slider-error");
+      splide.innerHTML = `
+        <div>
+          ⚠️ <strong>Error:</strong> No se pudo cargar este slider.<br>
+          Verifica los atributos o la configuración del plugin.
+        </div>
+      `;
+    }
+  });
 });
