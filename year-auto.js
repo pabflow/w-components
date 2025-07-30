@@ -19,5 +19,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ✅ Debug / Test Logs
    * -------------------------------- */
-  console.log("[Webflow AutoYear] All elements with [data-year] initialized ✅ by Pablo Gubelin");
+  console.log("[Webflow AutoYear] All components successfully initialized ✅");
 });
